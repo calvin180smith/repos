@@ -3,7 +3,7 @@ package main
 // test
 
 import (
-	"repos-cli/cmd"
+	"repos/cmd"
 )
 
 func main() {

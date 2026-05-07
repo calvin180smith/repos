@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
@@ -101,10 +100,11 @@ var listCmd = &cobra.Command{
 			hours := timeSince.Hours()
 			minutes := timeSince.Minutes()
 			seconds := timeSince.Seconds()
+			
 
 			var returnTimeString string
 
-			if hours == 0 {
+			if hours < 1 {
 				if minutes == 0 {
 					returnTimeString = fmt.Sprintf("%.0f seconds ago", seconds)
 				} else if minutes == 1 {
@@ -121,18 +121,7 @@ var listCmd = &cobra.Command{
 				returnTimeString = fmt.Sprintf("%.0f days ago", math.Round(hours/24))
 			}
 
-			// if hours == 1 {
-			// 	returnTimeString = fmt.Sprintf("%.1f hour and %.1f minutes ago",hours,minutes)
-			// } else if hours > 1 {
-			// 	returnTimeString = fmt.Sprintf("%.1f hours and %.1f minutes ago",hours,minutes)
-
-			// } else if hours == 0 {
-			// 	if minutes == 0 {
-			// 		returnTimeString = fmt.Sprintf("%.1f seconds ago",seconds)
-			// 	}
-			// 	returnTimeString = fmt.Sprintf("%.1f minutes ago",minutes)
-			// }
-
+			
 			rows = append(rows, table.Row{repo.Name, repo.Path, returnTimeString})
 		}
 

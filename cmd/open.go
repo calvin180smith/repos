@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -26,8 +25,9 @@ func Open(repoPath string) (string, error) {
 }
 
 var openCmd = &cobra.Command{
-	Use:   "open",
-	Short: "open a repo in VS Code",
+	Use:   "open [repository name]",
+	Short: "Open a repository in VS Code",
+	Long:  "Opens the specified repository in VS Code by name, or use --latest to open the most recently modified one.",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		config, err := readConfig()
@@ -39,7 +39,7 @@ var openCmd = &cobra.Command{
 		latest, _ := cmd.Flags().GetBool("latest")
 
 		if latest {
-			listRepos, err := listRepos(config.Path)
+			listRepos, err := listRepos(config.Paths)
 			if err != nil {
 				fmt.Printf("%v\n", err)
 			}
@@ -48,8 +48,11 @@ var openCmd = &cobra.Command{
 			Open(latestRepo.Path)
 
 		} else if len(args) > 0 {
-			path := args[0]
-			repoPath := filepath.Join(config.Path, path)
+			repoName := args[0]
+			repoPath, err := findRepoPath(repoName, config.Paths)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+			}
 			Open(repoPath)
 
 		} else {
@@ -60,6 +63,6 @@ var openCmd = &cobra.Command{
 }
 
 func init() {
-	openCmd.Flags().Bool("latest", false, "open the most recently modified repo")
+	openCmd.Flags().Bool("latest", false, "open the most recently modified repository")
 	rootCmd.AddCommand(openCmd)
 }

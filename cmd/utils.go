@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,4 +33,31 @@ func readConfig() (*Config, error) {
 
 	return &config, nil
 
+}
+
+func checkDuplicatePath(paths []string) bool {
+    seen := make(map[string]struct{}, len(paths))
+    for _, path := range paths {
+        if _, ok := seen[path]; ok {
+            return true
+        }
+        seen[path] = struct{}{}
+    }
+    return false
+}
+
+func findRepoPath(repoName string,paths []string) (string, error) {
+	repos, err := listRepos(paths)
+	if err != nil {
+		return "", fmt.Errorf("Error: %v\n", err)
+	}
+
+	for r := range repos {
+		if repos[r].Name == repoName {
+			return repos[r].Path, nil
+			
+		}
+	}
+
+	return "", fmt.Errorf("Could not find repo")
 }

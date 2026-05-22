@@ -10,15 +10,15 @@ import (
 )
 
 type Config struct {
-	Path string `yaml:"path"`
+	Paths []string `yaml:"paths"`
 }
 
-func setConfig(path string, configFilePath string) error {
+func setConfig(paths []string, configFilePath string) error {
 
 	f, err := os.ReadFile(configFilePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			out, err := yaml.Marshal(Config{Path: path})
+			out, err := yaml.Marshal(Config{Paths: paths})
 			if err != nil {
 				return fmt.Errorf("could not marshal config: %w", err)
 			}
@@ -35,7 +35,53 @@ func setConfig(path string, configFilePath string) error {
 		return fmt.Errorf("could not unmarshal config: %w", err)
 	}
 
-	config.Path = path
+	config.Paths = paths
+
+	dupCheck := checkDuplicatePath(config.Paths)
+	if dupCheck {
+		return fmt.Errorf("Paths must be unique")
+	}
+
+	out, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("could not marshal config: %w", err)
+	}
+	err = os.WriteFile(configFilePath, out, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write config: %w", err)
+	}
+	return err
+
+}
+
+func addPath(paths []string, configFilePath string) error {
+	f, err := os.ReadFile(configFilePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			out, err := yaml.Marshal(Config{Paths: paths})
+			if err != nil {
+				return fmt.Errorf("could not marshal config: %w", err)
+			}
+			err = os.WriteFile(configFilePath, out, 0644)
+			if err != nil {
+				return fmt.Errorf("could not write config: %w", err)
+			}
+			return nil
+		}
+	}
+
+	config := Config{}
+	if err := yaml.Unmarshal(f, &config); err != nil {
+		return fmt.Errorf("could not unmarshal config: %w", err)
+	}
+
+	config.Paths = append(config.Paths, paths...)
+
+	dupCheck := checkDuplicatePath(config.Paths)
+	if dupCheck {
+		return fmt.Errorf("Paths must be unique")
+	}
+
 	out, err := yaml.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("could not marshal config: %w", err)
@@ -50,20 +96,29 @@ func setConfig(path string, configFilePath string) error {
 
 var cfgCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Initialize config",
+	Short: "Manage directory paths where repos scans for Git repositories",
+	Long:  "Configure which directories repos should scan for Git repositories.\nSettings are stored in ~/.repos.yaml.",
 }
+
+var paths []string
+var addPaths []string
 
 var setCfgCmd = &cobra.Command{
 	Use:   "set",
-	Short: "Set config for repos",
+	Short: "Set the list of directories to scan (replaces existing paths)",
 	Run: func(cmd *cobra.Command, args []string) {
-		path, _ := cmd.Flags().GetString("path")
+		paths, err := cmd.Flags().GetStringSlice("path")
+		if err != nil {
+			panic(err)
+		}
+
 		configFilePath, err := getConfigFilePath()
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 			return
 		}
-		err = setConfig(path, configFilePath)
+
+		err = setConfig(paths, configFilePath)
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 			return
@@ -76,7 +131,7 @@ var setCfgCmd = &cobra.Command{
 
 var showCfgCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show config",
+	Short: "Display the current configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		config, err := readConfig()
 		if err != nil {
@@ -84,15 +139,51 @@ var showCfgCmd = &cobra.Command{
 		}
 		fmt.Println(config)
 
+	},
+}
+
+var addPathCmd = &cobra.Command{
+	Use:   "add",
+	Short: "Add one or more directories to the scan list",
+	Run: func(cmd *cobra.Command, args []string) {
+		paths, err := cmd.Flags().GetStringSlice("path")
+		if err != nil {
+			panic(err)
+		}
+
+		dupCheck := checkDuplicatePath(paths)
+		if dupCheck {
+			fmt.Printf("Paths must be unique")
+			return
+		}
+
+		configFilePath, err := getConfigFilePath()
+		if err != nil {
+			fmt.Printf("error: %v\n", err)
+			return
+		}
+
+		err = addPath(paths, configFilePath)
+		if err != nil {
+			fmt.Printf("error: %v\n", err)
+			return
+		}
+
+		fmt.Printf("Config file successfully updated at %v:", configFilePath)
 
 	},
 }
 
 func init() {
-	setCfgCmd.Flags().String("path", "", "path to config file")
-	setCfgCmd.MarkFlagRequired("set")
+	setCfgCmd.Flags().StringSliceVar(&paths, "path", []string{}, "directories to scan for Git repositories (comma-separated or repeated)")
+	setCfgCmd.MarkFlagRequired("path")
+
+	addPathCmd.Flags().StringSliceVar(&addPaths, "path", []string{}, "directories to add (comma-separated or repeated)")
+	addPathCmd.MarkFlagRequired("path")
+
 	cfgCmd.AddCommand(showCfgCmd)
 	cfgCmd.AddCommand(setCfgCmd)
+	cfgCmd.AddCommand(addPathCmd)
 	rootCmd.AddCommand(cfgCmd)
 
 }

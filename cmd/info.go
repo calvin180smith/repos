@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -40,7 +39,7 @@ func runGitCommand(repoPath string, args ...string) (string, error) {
 	if outputStr == "" {
 		return "N/A", nil
 	}
-	
+
 	return outputStr, nil
 
 }
@@ -52,16 +51,15 @@ func repoInfo(repoPath string) (RepoInfo, error) {
 	if err != nil {
 		remote = "No remote branch url found"
 	}
-	
+
 	branchArgs := []string{"branch", "--show-current"}
 	branch, err := runGitCommand(repoPath, branchArgs...)
 	if err != nil {
-		branch = fmt.Sprintf("Could not fetch current branch: %s",err)
+		branch = fmt.Sprintf("Could not fetch current branch: %s", err)
 	}
 
 	nrBranchArgs := []string{"branch"}
 	nrBranch, err := runGitCommand(repoPath, nrBranchArgs...)
-	
 
 	branches := 0
 	for _, line := range strings.Split(nrBranch, "\n") {
@@ -69,7 +67,6 @@ func repoInfo(repoPath string) (RepoInfo, error) {
 			branches++
 		}
 	}
-
 
 	lastCommitArgs := []string{"log", "-1", "--format=%s (%cd) <%an>)"}
 	lastCommitInfo, err := runGitCommand(repoPath, lastCommitArgs...)
@@ -82,8 +79,9 @@ func repoInfo(repoPath string) (RepoInfo, error) {
 }
 
 var infoCmd = &cobra.Command{
-	Use:   "info",
-	Short: "Get information about git repo",
+	Use:   "info [repository name]",
+	Short: "Show detailed information about a repository",
+	Long:  "Displays information about a Git repository including its remote URL, current branch, number of local branches, and last commit details.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -91,15 +89,21 @@ var infoCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
-		path := args[0]
-		repoPath := filepath.Join(config.Path, path)
 
-		test, err := repoInfo(repoPath)
-		
-		test.Path = repoPath
-		test.Name = path
+		repoName := args[0]
 
-		test.Print()
+		repoPath, err := findRepoPath(repoName, config.Paths)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+
+		info, err := repoInfo(repoPath)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+		info.Path = repoPath
+		info.Name = repoName
+		info.Print()
 
 	},
 }

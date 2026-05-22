@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
@@ -18,51 +19,57 @@ type Repo struct {
 	LastModified time.Time
 }
 
-func listRepos(path string) ([]Repo, error) {
-	items, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("Error: %w", err)
-	}
+func listRepos(paths []string) ([]Repo, error) {
 
-	var repos []Repo
+	var reposList []Repo
 
-	for _, item := range items {
+	for _, path := range paths {
 
-		if item.IsDir() {
-			repoPath := filepath.Join(path, item.Name())
-			gitPath := filepath.Join(repoPath, ".git")
-			_, err := os.Stat(gitPath)
-			if err != nil {
-				continue
-			}
+		items, err := os.ReadDir(path)
+		if err != nil {
+			return nil, fmt.Errorf("Error: %w", err)
+		}
 
-			info, err := os.Stat(filepath.Join(gitPath, "COMMIT_EDITMSG"))
-			if err != nil {
-				info, err = os.Stat(gitPath)
+		for _, item := range items {
+
+			if item.IsDir() {
+				repoPath := filepath.Join(path, item.Name())
+				gitPath := filepath.Join(repoPath, ".git")
+				_, err := os.Stat(gitPath)
 				if err != nil {
-					return nil, fmt.Errorf("Error: %w", err)
+					continue
 				}
 
+				info, err := os.Stat(filepath.Join(gitPath, "COMMIT_EDITMSG"))
+				if err != nil {
+					info, err = os.Stat(gitPath)
+					if err != nil {
+						return nil, fmt.Errorf("Error: %w", err)
+					}
+
+				}
+
+				lastModified := info.ModTime()
+
+				reposList = append(reposList, Repo{Name: item.Name(), Path: repoPath, LastModified: lastModified})
+
 			}
-
-			lastModified := info.ModTime()
-
-			repos = append(repos, Repo{Name: item.Name(), Path: repoPath, LastModified: lastModified})
-
 		}
 	}
 
-	sort.Slice(repos, func(i, j int) bool {
-		return repos[i].LastModified.After(repos[j].LastModified)
+	sort.Slice(reposList, func(i, j int) bool {
+		return reposList[i].LastModified.After(reposList[j].LastModified)
 	})
 
-	return repos, nil
+	return reposList, nil
 
 }
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List repos",
+	Short: "List discovered Git repositories, sorted by last modified",
+	Long: `Lists all Git repositories found in configured directories, sorted by
+most recently modified first. Use --limit to restrict the number of results.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		limit, _ := cmd.Flags().GetString("limit")
 
@@ -71,7 +78,8 @@ var listCmd = &cobra.Command{
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
-		repos, err := listRepos(config.Path)
+
+		repos, err := listRepos(config.Paths)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
@@ -83,7 +91,11 @@ var listCmd = &cobra.Command{
 				fmt.Printf("Please give a valid limit integer \n Error: %v\n", err)
 				return
 			}
+			if limitInt > len(repos) {
+				limitInt = len(repos)
+			}
 			repos = repos[0:limitInt]
+
 		}
 
 		t := table.NewWriter()
@@ -100,7 +112,6 @@ var listCmd = &cobra.Command{
 			hours := timeSince.Hours()
 			minutes := timeSince.Minutes()
 			seconds := timeSince.Seconds()
-			
 
 			var returnTimeString string
 
@@ -121,7 +132,6 @@ var listCmd = &cobra.Command{
 				returnTimeString = fmt.Sprintf("%.0f days ago", math.Round(hours/24))
 			}
 
-			
 			rows = append(rows, table.Row{repo.Name, repo.Path, returnTimeString})
 		}
 
@@ -132,7 +142,7 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().String("limit", "", "limit the number of repos to list")
+	listCmd.Flags().String("limit", "", "maximum number of repositories to display")
 	rootCmd.AddCommand(listCmd)
 
 }

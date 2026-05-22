@@ -1,4 +1,4 @@
-module repos
+module github.com/calvin180smith/repos
 
 go 1.24.6
 

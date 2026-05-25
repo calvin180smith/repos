@@ -1,4 +1,4 @@
-# repos
+# ![logo](./repos_logo_under_1mb.png)
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/calvin180smith/repos)](https://go.dev/)
 [![Latest Release](https://img.shields.io/github/v/release/calvin180smith/repos)](https://github.com/calvin180smith/repos/releases/latest)

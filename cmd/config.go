@@ -10,14 +10,19 @@ import (
 
 type Config struct {
 	Paths []string `yaml:"paths"`
+	Editor string   `yaml:"editor"`
 }
 
-func setConfig(paths []string, configFilePath string) error {
+func setConfig(paths []string,ide string ,configFilePath string) error {
+
+	if ide == "" {
+		ide = "code"
+	}
 
 	f, err := os.ReadFile(configFilePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			out, err := yaml.Marshal(Config{Paths: paths})
+			out, err := yaml.Marshal(Config{Paths: paths,Editor: ide})
 			if err != nil {
 				return fmt.Errorf("could not marshal config: %w", err)
 			}
@@ -35,6 +40,7 @@ func setConfig(paths []string, configFilePath string) error {
 	}
 
 	config.Paths = paths
+	config.Editor = ide
 
 	dupCheck := checkDuplicatePath(config.Paths)
 	if dupCheck {
@@ -111,13 +117,18 @@ var setCfgCmd = &cobra.Command{
 			panic(err)
 		}
 
+		ide, err := cmd.Flags().GetString("ide")
+		if err != nil {
+			panic(err)
+		}
+
 		configFilePath, err := getConfigFilePath()
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 			return
 		}
 
-		err = setConfig(paths, configFilePath)
+		err = setConfig(paths,ide,configFilePath)
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 			return
@@ -136,8 +147,8 @@ var showCfgCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(config)
-
+		fmt.Printf("%-12s %s\n", "paths:", config.Paths)
+		fmt.Printf("%-12s %s\n", "editor:", config.Editor)
 	},
 }
 
@@ -173,9 +184,13 @@ var addPathCmd = &cobra.Command{
 	},
 }
 
+
+
 func init() {
 	setCfgCmd.Flags().StringSliceVar(&paths, "path", []string{}, "directories to scan for Git repositories (comma-separated or repeated)")
 	setCfgCmd.MarkFlagRequired("path")
+
+	setCfgCmd.Flags().String("ide","","default editor to open a repo in (defaults to VS Code)")
 
 	addPathCmd.Flags().StringSliceVar(&addPaths, "path", []string{}, "directories to add (comma-separated or repeated)")
 	addPathCmd.MarkFlagRequired("path")

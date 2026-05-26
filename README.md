@@ -79,6 +79,9 @@ Settings are stored in `~/.repos.yaml`.
 # Set directories to scan (replaces existing paths)
 repos config set --path /path/to/dir1 --path /path/to/dir2
 
+# Set the default editor (defaults to VS Code if not specified)
+repos config set --path /path/to/dir1 --ide cursor
+
 # Add a directory to the existing list
 repos config add --path /path/to/dir3
 
@@ -105,11 +108,16 @@ Displays detailed information about a repository including remote URL, current b
 repos info my-repo
 ```
 
-### `repos open` — Open a repository in VS Code
+### `repos open` — Open a repository in an editor
+
+Opens a repository in your configured default editor (VS Code by default). Use `--ide` to override the default editor for a single invocation.
 
 ```bash
-# Open a specific repository
+# Open a specific repository in the default editor
 repos open my-repo
+
+# Open a repository in a specific editor
+repos open my-repo --ide cursor
 
 # Open the most recently modified repository
 repos open --latest
@@ -123,6 +131,8 @@ The configuration file is stored at `~/.repos.yaml` with the following format:
 paths:
   - /home/user/projects
   - /home/user/work
+editor: code
 ```
 
-Duplicate paths are automatically prevented when using `config add`.
+- `paths`: Directories to scan for Git repositories. Duplicate paths are automatically prevented when using `config add`.
+- `editor`: The default editor command used by `repos open` (defaults to `code` if not set). This must be the actual CLI command that launches the editor (e.g. `code`, `cursor`, `zed`, `notepad`). The tool runs `<editor> .` in the repository directory, so the value must be a command available on your `PATH`.

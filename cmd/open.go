@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func Open(repoPath string) (string, error) {
+func Open(repoPath string,editor string) (string, error) {
 
-	cmd := exec.Command("code", ".")
+	cmd := exec.Command(editor, ".")
 	cmd.Dir = repoPath
 	out, err := cmd.Output()
 
@@ -35,6 +35,11 @@ var openCmd = &cobra.Command{
 			return
 		}
 
+		ide, err := cmd.Flags().GetString("ide")
+		if err != nil {
+			panic(err)
+		}
+
 		latest, _ := cmd.Flags().GetBool("latest")
 
 		if latest {
@@ -44,7 +49,11 @@ var openCmd = &cobra.Command{
 			}
 
 			latestRepo := listRepos[0]
-			Open(latestRepo.Path)
+			if ide != "" {
+				Open(latestRepo.Path,ide)
+			} else {
+				Open(latestRepo.Path,config.Editor)
+			}
 
 		} else if len(args) > 0 {
 			repoName := args[0]
@@ -52,7 +61,11 @@ var openCmd = &cobra.Command{
 			if err != nil {
 				fmt.Printf("%v\n", err)
 			}
-			Open(repoPath)
+			if ide != "" {
+				Open(repoPath,ide)
+			} else {
+				Open(repoPath,config.Editor)
+			}
 
 		} else {
 			fmt.Println("please provide a repo name or use --latest")
@@ -63,5 +76,6 @@ var openCmd = &cobra.Command{
 
 func init() {
 	openCmd.Flags().Bool("latest", false, "open the most recently modified repository")
+	openCmd.Flags().String("ide","","editor to use when opening repo")
 	rootCmd.AddCommand(openCmd)
 }
